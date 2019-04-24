@@ -1,0 +1,191 @@
+package net.runelite.client.plugins.bank;
+
+import com.google.common.collect.ImmutableList;
+import lombok.Getter;
+import net.runelite.api.*;
+import net.runelite.client.game.ItemManager;
+
+import javax.inject.Inject;
+import java.util.*;
+
+import static net.runelite.api.ItemID.*;
+
+import static net.runelite.api.ItemID.COINS_995;
+import static net.runelite.api.ItemID.PLATINUM_TOKEN;
+
+public class BankXPCalculation {
+
+    private static final ImmutableList<Varbits> TAB_VARBITS = ImmutableList.of(
+            Varbits.BANK_TAB_ONE_COUNT,
+            Varbits.BANK_TAB_TWO_COUNT,
+            Varbits.BANK_TAB_THREE_COUNT,
+            Varbits.BANK_TAB_FOUR_COUNT,
+            Varbits.BANK_TAB_FIVE_COUNT,
+            Varbits.BANK_TAB_SIX_COUNT,
+            Varbits.BANK_TAB_SEVEN_COUNT,
+            Varbits.BANK_TAB_EIGHT_COUNT,
+            Varbits.BANK_TAB_NINE_COUNT
+    );
+
+    private final int[] herbs;
+
+    //Maps itemID to XP amount for creating potion with the herb.
+    private final Map<Integer, Integer> herbList;
+
+    @Getter
+    private long herbloreXP;
+
+    private final BankConfig config;
+    private final ItemManager itemManager;
+    private final Client client;
+
+    // Used to avoid extra calculation if the bank has not changed
+    private int itemsHash;
+
+    @Inject
+    BankXPCalculation(ItemManager itemManager, BankConfig config, Client client)
+    {
+        this.itemManager = itemManager;
+        this.config = config;
+        this.client = client;
+
+        this.herbs = new int[14];
+        this.herbList = new HashMap<Integer, Integer>();
+    }
+
+    /**
+     *
+     * Below methods used to create the herb, grimyHerb, and unfPotion lists for now.
+     * Will look into how to retrieve XP amounts without hard-coding later.
+     *
+     */
+
+    void initHerbList(Map<Integer, Integer> herbList)
+    {
+        herbs[0] = GUAM_LEAF;
+        herbs[1] = MARRENTILL;
+        herbs[2] = TARROMIN;
+        herbs[3] = HARRALANDER;
+        herbs[4] = RANARR_WEED;
+        herbs[5] = IRIT_LEAF;
+        herbs[6] = AVANTOE;
+        herbs[7] = KWUARM;
+        herbs[8] = SNAPDRAGON;
+        herbs[9] = CADANTINE;
+        herbs[10] = LANTADYME;
+        herbs[11] = DWARF_WEED;
+        herbs[12] = TOADFLAX;
+        herbs[13] = TORSTOL;
+
+        herbList.put(ItemID.GUAM_LEAF, 25);
+        herbList.put(ItemID.MARRENTILL, 37);
+        herbList.put(ItemID.TARROMIN, 50);
+        herbList.put(ItemID.HARRALANDER, 67);
+        herbList.put(ItemID.RANARR_WEED, 87);
+        herbList.put(ItemID.IRIT_LEAF, 100);
+        herbList.put(ItemID.AVANTOE, 117);
+        herbList.put(ItemID.KWUARM, 125);
+        herbList.put(ItemID.SNAPDRAGON, 142);
+        herbList.put(ItemID.CADANTINE, 150);
+        herbList.put(ItemID.LANTADYME, 172);
+        herbList.put(ItemID.DWARF_WEED, 162);
+        herbList.put(ItemID.TOADFLAX, 180);
+        herbList.put(ItemID.TORSTOL, 150);
+    }
+
+    Item[] getItems()
+    {
+        ItemContainer bankInventory = client.getItemContainer(InventoryID.BANK);
+
+        if (bankInventory == null)
+        {
+            return null;
+        }
+
+        Item[] items = bankInventory.getItems();
+        int currentTab = client.getVar(Varbits.CURRENT_BANK_TAB);
+
+        if (currentTab > 0)
+        {
+            int startIndex = 0;
+
+            for (int i = currentTab - 1; i > 0; i--)
+            {
+                startIndex += client.getVar(TAB_VARBITS.get(i - 1));
+            }
+
+            int itemCount = client.getVar(TAB_VARBITS.get(currentTab - 1));
+            items = Arrays.copyOfRange(items, startIndex, startIndex + itemCount);
+        }
+
+
+        return items;
+    }
+
+    int calcHerbloreXp()
+    {
+        int xp = 0;
+        Item[] items = getItems();
+        Map<Integer, Integer> herbsInBank = new HashMap<Integer, Integer>(); //Maps itemID -> Quantity?
+        initHerbList(this.herbList);
+
+        if(items == null)
+        {
+            return xp;
+        }
+
+        for (Item item : items)
+        {
+            int quantity = item.getQuantity();
+
+            if (item.getId() <= 0 || quantity == 0)
+            {
+                continue;
+            }
+
+
+            final ItemComposition itemComposition = itemManager.getItemComposition(item.getId());
+
+            /**
+             * Iterate through list of Items in the bank, if it's a herb, add the ID, quantity pair to the herbsInBank HashMap
+             * which will be used to calculate total XP banked.
+             */
+            if(item.getId() == GUAM_LEAF || item.getId() == MARRENTILL || item.getId() == ItemID.TARROMIN || item.getId() == HARRALANDER ||
+                    item.getId() == RANARR_WEED || item.getId() == IRIT_LEAF || item.getId() == AVANTOE || item.getId() == KWUARM || item.getId() == TOADFLAX ||
+                    item.getId() == SNAPDRAGON || item.getId() == CADANTINE || item.getId() == LANTADYME || item.getId() == DWARF_WEED || item.getId() == TORSTOL)
+            {
+                herbsInBank.put(item.getId(), item.getQuantity());
+            }
+        }
+
+        // Now do the calculations
+        for(int i = 0; i < herbsInBank.size(); i++)
+        {
+            if(herbsInBank.get(herbs[i]) != null) {
+                xp += (herbsInBank.get(herbs[i]) * herbList.get(herbs[i]));
+            }
+        }
+
+        return xp;
+    }
+
+    private boolean isBankDifferent(Item[] items)
+    {
+        Map<Integer, Integer> mapCheck = new HashMap<>();
+
+        for (Item item : items)
+        {
+            mapCheck.put(item.getId(), item.getQuantity());
+        }
+
+        int curHash = mapCheck.hashCode();
+
+        if (curHash != itemsHash)
+        {
+            itemsHash = curHash;
+            return true;
+        }
+
+        return false;
+    }
+}

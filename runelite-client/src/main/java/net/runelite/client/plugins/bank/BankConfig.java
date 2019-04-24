@@ -97,4 +97,21 @@ public interface BankConfig extends Config
 	{
 		return false;
 	}
+
+	@ConfigItem(
+			keyName = "showBankedXP",
+			name = "Show Banked Experience",
+			description = "Show total amount of experience in chosen skill currently banked",
+			position = 7
+	)
+	default boolean showBankedXP(){return false;}
+
+	@ConfigItem(
+			keyName = "xpType",
+			name = "Skill to display Banked XP",
+			description = "Choose the skill that you would like XP Banked to be displayed",
+			position = 8
+	)
+	default BankXPType xpType(){return BankXPType.HERBLORE;}
+
 }

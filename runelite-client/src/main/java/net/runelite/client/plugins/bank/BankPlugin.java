@@ -62,6 +62,9 @@ public class BankPlugin extends Plugin
 	private BankCalculation bankCalculation;
 
 	@Inject
+	private BankXPCalculation bankXPCalculation;
+
+	@Inject
 	private BankConfig config;
 
 	@Inject
@@ -166,6 +169,27 @@ public class BankPlugin extends Plugin
 			}
 		}
 
+		//TODO: Refactor into if/else statements for config options
+		if( config.showBankedXP() )
+		{
+			if(config.xpType() == BankXPType.HERBLORE)
+			{
+				long herbloreXP = bankXPCalculation.calcHerbloreXp();
+				strCurrentTab += " Herblore XP: " + herbloreXP;
+			}
+			else if(config.xpType() == BankXPType.PRAYER)
+			{
+				//TODO:
+				//prayerXP = calcPrayerXp(items);
+			}
+			else if(config.xpType() == BankXPType.SMITHING)
+			{
+				//TODO:
+				//smithingXP = calcSmithingXp(items);
+			}
+		}
+
+		System.out.println("DEBUG: BANKXPCALC: strCurrentTab: " + strCurrentTab);
 		String[] stringStack = client.getStringStack();
 		int stringStackSize = client.getStringStackSize();
 
