@@ -180,7 +180,8 @@ public class BankPlugin extends Plugin
 			else if(config.xpType() == BankXPType.PRAYER)
 			{
 				//TODO:
-				//prayerXP = calcPrayerXp(items);
+				long prayerXP = bankXPCalculation.calcPrayerXp();
+				strCurrentTab += " Prayer XP: " + prayerXP;
 			}
 			else if(config.xpType() == BankXPType.SMITHING)
 			{

@@ -28,12 +28,14 @@ public class BankXPCalculation {
     );
 
     private final int[] herbs;
+    private final int[] bones;
+
+    //TODO: Create constants for each type of prayer multiplier (ecto, gilded, wildy, etc).
+    private final double GILDED_ALTAR = 3.5; //Gilded Altar gives 350% xp.
 
     //Maps itemID to XP amount for creating potion with the herb.
     private final Map<Integer, Integer> herbList;
-
-    @Getter
-    private long herbloreXP;
+    private final Map<Integer, Integer> boneList;
 
     private final BankConfig config;
     private final ItemManager itemManager;
@@ -50,7 +52,9 @@ public class BankXPCalculation {
         this.client = client;
 
         this.herbs = new int[14];
+        this.bones = new int[12];
         this.herbList = new HashMap<Integer, Integer>();
+        this.boneList = new HashMap<Integer, Integer>();
     }
 
     /**
@@ -91,6 +95,35 @@ public class BankXPCalculation {
         herbList.put(ItemID.DWARF_WEED, 162);
         herbList.put(ItemID.TOADFLAX, 180);
         herbList.put(ItemID.TORSTOL, 150);
+    }
+
+    void initBoneList(Map<Integer, Integer> boneList)
+    {
+        bones[0] = BIG_BONES;
+        bones[1] = JOGRE_BONES;
+        bones[2] = ZOGRE_BONES;
+        bones[3] = BABYDRAGON_BONES;
+        bones[4] = WYRM_BONES;
+        bones[5] = DRAGON_BONES;
+        bones[6] = WYVERN_BONES;
+        bones[7] = DRAKE_BONES;
+        bones[8] = LAVA_DRAGON_BONES;
+        bones[9] = HYDRA_BONES;
+        bones[10] = DAGANNOTH_BONES;
+        bones[11] = SUPERIOR_DRAGON_BONES;
+
+        boneList.put(BIG_BONES, 15);
+        boneList.put(JOGRE_BONES, 15);
+        boneList.put(ZOGRE_BONES, 22);
+        boneList.put(BABYDRAGON_BONES, 30);
+        boneList.put(WYRM_BONES, 50);
+        boneList.put(DRAGON_BONES, 72);
+        boneList.put(WYVERN_BONES, 72);
+        boneList.put(DRAKE_BONES, 80);
+        boneList.put(LAVA_DRAGON_BONES, 85);
+        boneList.put(HYDRA_BONES, 110);
+        boneList.put(DAGANNOTH_BONES, 125);
+        boneList.put(SUPERIOR_DRAGON_BONES, 150);
     }
 
     Item[] getItems()
@@ -143,9 +176,6 @@ public class BankXPCalculation {
                 continue;
             }
 
-
-            final ItemComposition itemComposition = itemManager.getItemComposition(item.getId());
-
             /**
              * Iterate through list of Items in the bank, if it's a herb, add the ID, quantity pair to the herbsInBank HashMap
              * which will be used to calculate total XP banked.
@@ -159,10 +189,62 @@ public class BankXPCalculation {
         }
 
         // Now do the calculations
-        for(int i = 0; i < herbsInBank.size(); i++)
+        for(int i = 0; i < herbs.length; i++)
         {
             if(herbsInBank.get(herbs[i]) != null) {
                 xp += (herbsInBank.get(herbs[i]) * herbList.get(herbs[i]));
+            }
+        }
+
+        return xp;
+    }
+
+    /**
+     * For now, calcPrayerXP will assume that the bones will be buried using a Gilded Altar.
+     * In the future, we could add an option to specify Ecto, Gilded, Wildy, etc maybe have it passed as a parameter from BankConfig
+     *
+     * TODO: Add Ensouled Heads to total prayer xp.
+     * TODO: Probably don't actually want to call initBoneList()/initHerbList() everytime the calc method is called...Move back to constructor?
+     */
+    int calcPrayerXp()
+    {
+        int xp = 0;
+        double multiplier = GILDED_ALTAR;
+        Item[] items = getItems();
+        Map<Integer, Integer> bonesInBank = new HashMap<Integer, Integer>(); //Maps itemID -> Quantity?
+        initBoneList(this.boneList);
+
+        if(items == null)
+        {
+            return xp;
+        }
+
+        for (Item item : items)
+        {
+            int quantity = item.getQuantity();
+
+            if (item.getId() <= 0 || quantity == 0)
+            {
+                continue;
+            }
+
+            /**
+             * Iterate through list of Items in the bank, if it's a bone, add the (ID, quantity) pair to the bonesInBank HashMap
+             * which will be used to calculate total XP banked.
+             */
+            if(item.getId() == BIG_BONES || item.getId() == JOGRE_BONES|| item.getId() == ItemID.ZOGRE_BONES || item.getId() == BABYDRAGON_BONES ||
+                    item.getId() == WYRM_BONES || item.getId() == DRAGON_BONES || item.getId() == WYVERN_BONES || item.getId() == DRAKE_BONES || item.getId() == LAVA_DRAGON_BONES ||
+                    item.getId() == HYDRA_BONES || item.getId() == DAGANNOTH_BONES || item.getId() == SUPERIOR_DRAGON_BONES )
+            {
+                bonesInBank.put(item.getId(), item.getQuantity());
+            }
+        }
+
+        // Now do the calculations
+        for(int i = 0; i < bones.length; i++)
+        {
+            if(bonesInBank.get(bones[i]) != null) {
+                xp += (bonesInBank.get(bones[i]) * boneList.get(bones[i])) * multiplier;
             }
         }
 
